@@ -1,79 +1,119 @@
-from flask import Flask, jsonify, request
+import json
+from flask import Flask, jsonify, request, send_file
+from classifier import Classifier
 
-from db.models import get_all_reports
-# from flask_swagger_ui import get_swaggerui_blueprint
+from db.models import get_all_reports, save_finalized_report, save_image, save_initial_report
 
-# import uuid
+from flask_cors import CORS, cross_origin
 
-# from apispec import APISpec
-# from apispec.ext.marshmallow import MarshmallowPlugin
-# from apispec_webframeworks.flask import FlaskPlugin
-# from marshmallow import Schema, fields
-# from flask_apispec.extension import FlaskApiSpec
+from diagnosis_helper import get_description_ISIC, get_level_of_concern_ISIC, get_recommended_course_of_action_ISIC
 
-
-# # Create an APISpec
-# spec = APISpec(
-#     title="Ensemble Diagnosis API",
-#     version="1.0.0",
-#     openapi_version="3.0.2",
-#     plugins=[FlaskPlugin(), MarshmallowPlugin()]
-# )
-
-# # Optional marshmallow support
-# class CategorySchema(Schema):
-#     id = fields.Int()
-#     name = fields.Str(required=True)
-
-
-# class PetSchema(Schema):
-#     categories = fields.List(fields.Nested(CategorySchema))
-#     name = fields.Str()
-
-
-# # Optional security scheme support
-# api_key_scheme = {"type": "apiKey", "in": "header", "name": "X-API-Key"}
-# spec.components.security_scheme("ApiKeyAuth", api_key_scheme)
-
-
-# # Optional Flask support
 app = Flask(__name__)
 
-# app.config.update({
-#   'APISPEC_SPEC': spec,
-#   'APISPEC_SWAGGER_URL': '/swagger/'
-# })
+classifier = Classifier()
 
-# docs = FlaskApiSpec(app)
-
-@app.route("/report/generate", methods=["POST", 'GET'])
+@app.route("/report/ISIC/generate", methods=["POST"])
 def generate_report():
-    # """Cat view.
-    # ---
-    # post:
-    #   parameters:
-    #   - in: path
-    #     schema: CategorySchema
-    #   responses:
-    #     200:
-    #       content:
-    #         application/json:
-    #           schema: CategorySchema
-    # """
-    if request.method == 'POST':
-        posted_data = request.get_json()
-        data = posted_data['data']
-        return jsonify(str('class x'))
-    if request.method == 'GET':
-      return jsonify({'title': 'Ensemble diagnosis', 'method': 'generate report'})
+    image = request.files['image']
+    if image is None:
+        return jsonify('ERROR: NO IMAGE PROVIDED')
+    
+    name = request.args.get('name')
+    age = request.args.get('age')
+    sex = request.args.get('sex')
+    patient_message = request.args.get('patient_message')
+
+    identified_class = int(classifier.classify_ISIC(image))
+    path = save_image(image, name)
+    lime_path = classifier.lime(image, name)
+
+    report = {
+        'name': name,
+        'age': age,
+        'sex': sex,
+        'patient_message': patient_message,
+        'class_code': identified_class,
+        'aut_desc': get_description_ISIC(identified_class),
+        'aut_course_action': get_recommended_course_of_action_ISIC(identified_class),
+        'aut_concern': get_level_of_concern_ISIC(identified_class),
+        'img_path': path,
+        'identified_class': identified_class,
+        'dataset': 'ISIC',
+        'xai_image': lime_path
+    }
+
+    save_initial_report(report)
+
+    return jsonify(report)
+
+
+@app.route("/report/ISIC", methods=["POST"])
+def save_final():
+    args = {
+        'cust_evaluated': request.args.get('cust_evaluated'),
+        'cust_diagnosis': request.args.get('cust_diagnosis'),
+        'cust_concern': request.args.get('cust_concern'),
+        'cust_inspection': request.args.get('cust_inspection'),
+        'cust_description': request.args.get('cust_description'),
+        'name': request.args.get('name'),
+        'request_id': request.args.get('request_id'),
+        'user_id': request.args.get('user_id')
+    }
+
+    save_finalized_report(args)
+
+
+@app.route("/report/rad", methods=["POST"])
+def save_final_rad():
+    args = {
+        'cust_evaluated': request.args.get('cust_evaluated'),
+        'cust_diagnosis': request.args.get('cust_diagnosis'),
+        'request_id': request.args.get('request_id'),
+        'user_id': request.args.get('user_id')
+    }
 
 
 @app.route("/report/", methods=["GET"])
 def get_reports():
-    if request.method == 'GET':
-        return jsonify({'reports': get_all_reports()})
+    dataset = request.args.get('dataset')
+    all = get_all_reports(dataset)
+    jsonStr = json.dumps(all)
+    return jsonify({'reports': jsonStr})
+
+
+@app.route("/report/rad/generate", methods=["POST"])
+def generate_rad_report():
+    image = request.files['image']
+    if image is None:
+        return jsonify('ERROR: NO IMAGE PROVIDED')
+    
+    name = request.args.get('name')
+    age = request.args.get('age')
+    sex = request.args.get('sex')
+    patient_message = request.args.get('patient_message')
+
+    identified_class = int(classifier.classify_rad(image))
+    path = save_image(image, name)
+
+    report = {
+        'name': name,
+        'age': age,
+        'sex': sex,
+        'patient_message': patient_message,
+        'class_code': identified_class,
+        'aut_desc': '',
+        'aut_course_action': '',
+        'aut_concern': '',
+        'img_path': path,
+        'identified_class': identified_class,
+        'dataset': 'rad'
+    }
+
+    save_initial_report(report)
+
+    return jsonify(report)
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
   
