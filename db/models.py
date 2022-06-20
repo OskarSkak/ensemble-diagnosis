@@ -90,9 +90,20 @@ def save_image(img, name):
     loc.save(path)
     return path
 
+
+def row2dict(row):
+    d = {}
+    for column in row.__table__.columns:
+        d[column.name] = str(getattr(row, column.name))
+    return d
+
+
 def get_all_reports(dataset = 'ISIC'):
     s = get_session()
-    return s.query(Report).filter(Report.dataset == dataset).all()
+    all = s.query(Report).filter(Report.dataset == dataset).all()
+    result = [row2dict(row) for row in all]
+
+    return result
 
 
 def get_user(id: int):

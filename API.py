@@ -1,4 +1,5 @@
 import json
+
 from flask import Flask, jsonify, request, send_file
 from classifier import Classifier
 
@@ -7,6 +8,8 @@ from db.models import get_all_reports, save_finalized_report, save_image, save_i
 from flask_cors import CORS, cross_origin
 
 from diagnosis_helper import get_description_ISIC, get_level_of_concern_ISIC, get_recommended_course_of_action_ISIC
+
+import PIL.Image
 
 app = Flask(__name__)
 
@@ -77,8 +80,7 @@ def save_final_rad():
 def get_reports():
     dataset = request.args.get('dataset')
     all = get_all_reports(dataset)
-    jsonStr = json.dumps(all)
-    return jsonify({'reports': jsonStr})
+    return jsonify(all)
 
 
 @app.route("/report/rad/generate", methods=["POST"])
@@ -112,6 +114,13 @@ def generate_rad_report():
     save_initial_report(report)
 
     return jsonify(report)
+
+
+@app.route("/image", methods=["GET"])
+def get_image():
+    path = request.args.get('path')
+    img = PIL.Image.open(path)
+    return send_file(path)
 
 
 if __name__ == '__main__':

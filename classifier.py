@@ -41,6 +41,19 @@ class Classifier:
         return normalized_data
     
 
+    def prepare_img_rad(self, img, x=100, y=100):
+        img = Image.open(img)
+        rezised_img = img.resize((x, y))
+        data = np.asarray(rezised_img)
+        if data.shape == (x, y):
+            d3 = np.stack((data,)*3, axis=-1)
+            d3 = d3[np.newaxis, ...]
+
+        d3 = d3.astype('float32')
+        normalized_data = d3/255.0
+        return normalized_data
+    
+
     def classify_image(self, img, model, x=100, y=100) -> int:
         normalized_data = self.prepare_img(img, x, y)
 
@@ -50,7 +63,9 @@ class Classifier:
     
 
     def classify_rad(self, img):
-        return self.classify_image(img, self.rad).argmax(axis=-1)[0]
+        normalized_data = self.prepare_img_rad(img, 100, 100)
+        num_class = self.rad.predict(normalized_data).argmax(axis=-1)[0]
+        return num_class
     
 
     def classify_ISIC(self, img) -> int:
