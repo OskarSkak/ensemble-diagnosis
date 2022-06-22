@@ -64,8 +64,10 @@ class Classifier:
 
     def classify_rad(self, img):
         normalized_data = self.prepare_img_rad(img, 100, 100)
-        num_class = self.rad.predict(normalized_data).argmax(axis=-1)[0]
-        return num_class
+        result = self.rad.predict(normalized_data)
+        num_class = result.argmax(axis=-1)[0]
+        prob = np.max(result)*100
+        return num_class, prob
     
 
     def classify_ISIC(self, img) -> int:
@@ -73,7 +75,8 @@ class Classifier:
         probs_2 = self.classify_image(img, self.isic_2, x=150, y=250)
         probs_3 = self.classify_image(img, self.isic_3, x=150, y=250)
         averages = np.mean(np.array([probs_1, probs_2, probs_3]), axis=0)
-        return averages.argmax(axis=-1)[0]
+        prob = np.max(averages)*100
+        return averages.argmax(axis=-1)[0], prob
 
 
     def lime(self, img, name):
