@@ -35,7 +35,7 @@ def generate_report():
     identified_class = int(identified_class)
     probability = float(probability)
     path = save_image(image, name)
-    lime_path = classifier.lime(image, name)
+    # lime_path = classifier.lime(image, name)
 
     inspection = 'No' if get_level_of_concern_ISIC(identified_class) == 'low' else 'Yes'
 
@@ -54,7 +54,7 @@ def generate_report():
         'aut_diagnosis': get_class_ISIC(identified_class),
         'confidence': probability,
         'aut_inspection': inspection,
-        'xai_image': lime_path
+        # 'xai_image': lime_path
     }
 
     save_initial_report(report)
